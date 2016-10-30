@@ -57,7 +57,7 @@ public class ClasspathScanner {
             private void check(String base, String relativePath) {
                 boolean hit = false;
                 for (int i = 0; i < args.length && !hit; i++)
-                    hit = match(args[0], relativePath);
+                    hit = match(args[i], relativePath);
 
                 if (hit) {
                     System.out.println(base + " - " + relativePath);
