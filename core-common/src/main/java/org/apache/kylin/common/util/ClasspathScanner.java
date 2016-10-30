@@ -25,6 +25,7 @@ import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Enumeration;
+import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipException;
 import java.util.zip.ZipFile;
@@ -41,6 +42,9 @@ public class ClasspathScanner {
         }
         System.out.println("----------------------------------------------------------------------------");
 
+        if (args.length == 0)
+            return;
+        
         scanner.scan("", new ResourceVisitor() {
             public void accept(File dir, String relativeFileName) {
                 check(dir.getAbsolutePath(), relativeFileName.replace('\\', '/'));
@@ -104,14 +108,23 @@ public class ClasspathScanner {
     }
 
     static File[] extractRoots(ClassLoader loader, boolean recursive) {
-        ArrayList<File> roots = new ArrayList();
-
-        do {
-            if (loader instanceof URLClassLoader) {
-                URL[] urls = ((URLClassLoader) loader).getURLs();
-                for (int i = 0; i < urls.length; i++) {
+        List<ClassLoader> loaders = new ArrayList<>();
+        while (loader != null) {
+            loaders.add(loader);
+            if (!recursive)
+                break;
+            loader = loader.getParent();
+        }
+        
+        List<File> roots = new ArrayList();
+        
+        // parent first
+        for (int i = loaders.size() - 1; i >= 0; i--) {
+            ClassLoader l = loaders.get(i);
+            if (l instanceof URLClassLoader) {
+                for (URL url : ((URLClassLoader) l).getURLs()) {
                     // tricky: space is "%20" in URL
-                    File f = new File(urls[i].getFile().replace("%20", " "));
+                    File f = new File(url.getFile().replace("%20", " "));
 
                     // some generated run script could contain empty path, i.e., foo::bar
                     // try detect and filter them out
@@ -126,8 +139,7 @@ public class ClasspathScanner {
                     roots.add(f);
                 }
             }
-            loader = loader.getParent();
-        } while (loader != null && recursive);
+        }
 
         return (File[]) roots.toArray(new File[roots.size()]);
     }
